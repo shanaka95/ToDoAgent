@@ -1,0 +1,55 @@
+[project]
+name = "to-do-agent"
+version = "0.1.0"
+description = "To Do Agent with LangGraph and OpenRouter"
+authors = [
+    {name = "Shanaka", email = "shanaka95@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi[standard]>=0.115.8",
+    "pydantic>=2.10.6",
+    "uvicorn>=0.34.0",
+    "mangum>=0.19.0",
+    "httpx>=0.28.1",
+    "cachetools>=5.5.2",
+    "pydantic-settings>=2.8.1",
+    "anthropic>=0.57.1",
+    "langgraph>=0.2.0",
+    "langchain>=0.2.0",
+    "langchain-anthropic>=0.2.0",
+    "langchain-openai>=0.3.30",
+    "langchain-core>=0.3.74",
+    "openai>=1.99.9",
+    "tiktoken>=0.7.0",
+]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.3.5",
+    "pytest-asyncio>=1.1.0",
+]
+dev = [
+    "respx>=0.22.0",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.4.1",
+    "pytest-asyncio>=1.1.0",
+    "respx>=0.22.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.1",
+    "pytest-asyncio>=1.1.0",
+]
