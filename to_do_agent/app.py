@@ -72,7 +72,7 @@ app.include_router(root_router)
 async def bubbletea_config():
     return fastapi_config_handler()
 
-@app.get("/chat")
+@app.post("/chat")
 async def bubbletea_chat(req: ChatRequest):
     return await fastapi_chat_handler(req)
 
