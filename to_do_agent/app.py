@@ -7,6 +7,7 @@ from to_do_agent.config.dependencies import get_app_settings
 from to_do_agent.api.root_router import router as root_router
 from fastapi.responses import JSONResponse
 import uvicorn
+from bubbletea_endpoints import fastapi_config_handler, fastapi_chat_handler, ChatRequest
 
 # Get settings for initial setup
 startup_app_settings = get_app_settings()
@@ -67,6 +68,13 @@ async def generic_exception_handler(request: Request, exc: Exception):
 
 app.include_router(root_router)
 
+@app.get("/config")
+async def bubbletea_config():
+    return fastapi_config_handler()
+
+@app.get("/chat")
+async def bubbletea_chat(req: ChatRequest):
+    return await fastapi_chat_handler(req)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=int(startup_app_settings.port))
