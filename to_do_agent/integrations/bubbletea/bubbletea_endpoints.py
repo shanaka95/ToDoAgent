@@ -18,7 +18,9 @@ chat interface, providing an alternative way to access your task management syst
 from typing import Optional, List
 from pydantic import BaseModel, Field
 import bubbletea_chat as bt
-from bubbletea_chat import LLM
+
+# Import our ToDo Agent components
+from to_do_agent.config.dependencies import get_to_do_agent
 
 # ----  BubbleTea Configuration - How Your Bot Appears  ----
 @bt.config()
@@ -35,10 +37,10 @@ def bubbletea_config():
     return bt.BotConfig(
         name="todo-assistant",                    # Internal name for the bot
         url="",                                   # Your public base URL (no trailing slash)
-        is_streaming=True,                        # Enable real-time streaming responses
+        is_streaming=False,                        # Enable real-time streaming responses
         display_name="To-Do Assistant",           # Name users see in the interface
         subtitle="Task management via chat",      # Brief description of what the bot does
-        initial_text="Hi! Tell me your task, e.g., 'add Buy milk due tomorrow'."  # Welcome message
+        initial_text="Hi! I'm your AI task assistant. Tell me what you need to do, like 'buy milk' or 'call mom'."  # Welcome message
     )
 
 # ----  Request Model - What BubbleTea Sends to Your Bot  ----
@@ -62,8 +64,8 @@ async def todo_bot(message: str, user_uuid: str = None, conversation_uuid: str =
     The main logic for your ToDo Agent in BubbleTea.
     
     This function handles incoming messages from BubbleTea users and
-    generates responses. It can stream responses in real-time for
-    a better user experience.
+    generates responses using your actual ToDo Agent. It can stream
+    responses in real-time for a better user experience.
     
     Args:
         message: What the user said to your bot
@@ -73,21 +75,23 @@ async def todo_bot(message: str, user_uuid: str = None, conversation_uuid: str =
     Yields:
         BubbleTea components that form the response
     """
-    # TODO: Connect this to your actual ToDo Agent
-    # Example: hand off to your to_do_agent here, then format replies for BubbleTea
-    # resp = await process_message_with_agent(message, user_uuid, conversation_uuid)
+    # Get the actual ToDo Agent instance
+    agent = get_to_do_agent()
     
-    # For now, provide a simple echo response with helpful hints
-    if message.lower().startswith("help"):
-        yield bt.Markdown("**Try:** `add Buy milk tomorrow 6pm` or `list tasks`")
-        return
+    # Use conversation_uuid as conversation_id, or generate one if not provided
+    conversation_id = conversation_uuid or f"bubbletea_{user_uuid or 'default'}"
     
-    yield bt.Text(f"You said: {message}")
-    
-    # You can also stream LLM output if you enable [llm] extra:
-    # llm = LLM(model="gpt-4o-mini")   # or any LiteLLM-supported model with env keys set
-    # async for chunk in llm.stream(f"Rephrase as a concise task: {message}"):
-    #     yield bt.Text(chunk)
+    try:
+        # Process the message through your actual ToDo Agent
+        response_text = await agent.process_message(message, conversation_id)
+        
+        # Return the AI's response as a text component
+        yield bt.Text(response_text)
+        
+    except Exception as e:
+        # Handle any errors gracefully
+        error_message = f"I'm sorry, I encountered an error: {str(e)}"
+        yield bt.Text(error_message)
 
 # ----  FastAPI Integration - Making It Work with Your Web Server  ----
 # The SDK provides decorators for behavior; here we expose plain callables FastAPI can route to.
@@ -117,19 +121,36 @@ async def fastapi_chat_handler(req: ChatRequest):
         req: The chat request from BubbleTea
         
     Returns:
-        A list of response components that BubbleTea can display
+        BubbleTea-compatible response format with responses array
     """
-    # The decorator makes todo_bot an async generator; collect its emitted components
-    payload = []
+    # Get the actual ToDo Agent instance
+    agent = get_to_do_agent()
     
-    # Process the message through your bot and collect all response components
-    async for component in todo_bot(
-        message=req.message,
-        user_uuid=req.user_uuid,
-        conversation_uuid=req.conversation_uuid,
-        user_email=req.user_email
-    ):
-        # Components are dataclasses; convert to JSON-ish dicts BubbleTea understands
-        payload.append(component.to_dict() if hasattr(component, "to_dict") else component.__dict__)
+    # Use conversation_uuid as conversation_id, or generate one if not provided
+    conversation_id = req.conversation_uuid or f"bubbletea_{req.user_uuid or 'default'}"
     
-    return payload
+    try:
+        # Process the message through your actual ToDo Agent
+        response_text = await agent.process_message(req.message, conversation_id)
+        
+        # Return BubbleTea-compatible response format
+        return {
+            "responses": [{
+                "payload": [{
+                    "type": "text",
+                    "content": response_text
+                }]
+            }]
+        }
+        
+    except Exception as e:
+        # Handle any errors gracefully
+        error_message = f"I'm sorry, I encountered an error: {str(e)}"
+        return {
+            "responses": [{
+                "payload": [{
+                    "type": "text",
+                    "content": error_message
+                }]
+            }]
+        }

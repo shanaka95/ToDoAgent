@@ -5,12 +5,12 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from mangum import Mangum
 from to_do_agent.config.dependencies import get_app_settings
-from to_do_agent.api.root_router import router as root_router
+from to_do_agent.api.root_router import router as api_router
 from fastapi.responses import JSONResponse
+from to_do_agent.integrations.bubbletea.bubbletea_router import router as bubbletea_router
+from mangum import Mangum
 import uvicorn
-from bubbletea_endpoints import fastapi_config_handler, fastapi_chat_handler, ChatRequest
 
 # Load our app settings right at startup so we know how to configure everything
 startup_app_settings = get_app_settings()
@@ -81,19 +81,10 @@ async def generic_exception_handler(request: Request, exc: Exception):
 
 
 # Include our main API routes (this connects all our endpoints)
-app.include_router(root_router)
+app.include_router(api_router)
 
-# These are special endpoints for BubbleTea integration
-# They provide a standardized way for external tools to interact with our app
-@app.get("/config")
-async def bubbletea_config():
-    """Provide configuration info to BubbleTea tools"""
-    return fastapi_config_handler()
-
-@app.post("/chat")
-async def bubbletea_chat(req: ChatRequest):
-    """Handle chat requests from BubbleTea integration"""
-    return await fastapi_chat_handler(req)
+# Include our BubbleTea router
+app.include_router(bubbletea_router)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=int(startup_app_settings.port))
