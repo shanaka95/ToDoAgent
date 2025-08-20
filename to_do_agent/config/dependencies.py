@@ -20,7 +20,7 @@ from to_do_agent.config.app_settings import AppSettings
 from to_do_agent.domain.agent import ToDoAgent
 from to_do_agent.backend.todo_storage_interface import TodoStorageInterface
 from to_do_agent.backend.todo_storage import TodoStorage
-
+from to_do_agent.config.agent_settings import get_agent_settings
 
 @lru_cache()
 def get_app_settings() -> AppSettings:
@@ -69,5 +69,11 @@ def get_to_do_agent() -> ToDoAgent:
     # Get the storage system first
     todo_storage = get_todo_storage()
     
-    # Create the AI agent with the storage system
-    return ToDoAgent(todo_storage=todo_storage)
+
+    agent_settings = get_agent_settings()
+    
+    # Create the AI agent with the storage system and settings
+    return ToDoAgent(
+        todo_storage=todo_storage,
+        settings=agent_settings
+    )

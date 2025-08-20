@@ -10,8 +10,10 @@ the required endpoints are:
 This router is mounted under /bubbletea prefix in the main app.
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from to_do_agent.integrations.bubbletea.bubbletea_endpoints import fastapi_config_handler, fastapi_chat_handler, ChatRequest
+from to_do_agent.config.dependencies import get_to_do_agent
+from to_do_agent.domain.agent import ToDoAgent
 
 # Create router with /bubbletea prefix
 router = APIRouter(
@@ -30,7 +32,10 @@ async def bubbletea_config():
     return fastapi_config_handler()
 
 @router.post("/chat")
-async def bubbletea_chat(req: ChatRequest):
+async def bubbletea_chat(
+    req: ChatRequest,
+    agent: ToDoAgent = Depends(get_to_do_agent)
+):
     """
     Handle chat requests from BubbleTea.
     
@@ -39,5 +44,5 @@ async def bubbletea_chat(req: ChatRequest):
     
     Note: BubbleTea sends POST requests to /bubbletea (not /bubbletea/chat)
     """
-    return await fastapi_chat_handler(req)
+    return await fastapi_chat_handler(req, agent)
 

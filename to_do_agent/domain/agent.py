@@ -55,6 +55,7 @@ class ToDoAgent:
         todo_storage: TodoStorageInterface,
         model: Optional[BaseChatModel] = None,
         prompt: Optional[ChatPromptTemplate] = None,
+        settings: Optional[Any] = None,
     ) -> None:
         """
         Set up our smart task assistant with all the tools it needs.
@@ -63,6 +64,7 @@ class ToDoAgent:
             todo_storage: Where we store and retrieve tasks (like a digital filing cabinet)
             model: The AI language model that understands natural language (defaults to GPT)
             prompt: Instructions that tell the AI how to behave (defaults to our custom prompt)
+            settings: Agent configuration settings (optional, will use defaults if not provided)
         """
         # Store our task database
         self.todo_storage = todo_storage
@@ -77,7 +79,7 @@ class ToDoAgent:
         self.logger = logging.getLogger(__name__)
         
         # Load our configuration settings
-        self.settings = get_agent_settings()
+        self.settings = settings or get_agent_settings()
         
         # Get all the tools the AI can use (create task, delete task, etc.)
         self.tools = get_tools(todo_storage)

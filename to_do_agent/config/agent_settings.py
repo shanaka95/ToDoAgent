@@ -158,20 +158,6 @@ def get_agent_settings() -> AgentSettings:
 
 
 @lru_cache
-def get_app_settings() -> AppSettings:
-    """
-    Get the main application settings.
-    
-    Similar to agent settings, but for the overall application
-    configuration like server settings, database connections, etc.
-    
-    Returns:
-        The application configuration settings
-    """
-    return AppSettings()
-
-
-@lru_cache
 def get_model() -> BaseChatModel:
     """
     Create and configure the AI language model.

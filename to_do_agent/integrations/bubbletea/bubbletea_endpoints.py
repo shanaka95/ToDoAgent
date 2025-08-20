@@ -8,7 +8,6 @@ chat interface, making your AI assistant accessible through their platform.
 The integration includes:
 - Configuration for how your bot appears in BubbleTea
 - Request/response handling for BubbleTea's chat format
-- Streaming support for real-time responses
 - Compatibility with BubbleTea's component system
 
 This allows users to interact with your ToDo Agent through BubbleTea's
@@ -20,7 +19,7 @@ from pydantic import BaseModel, Field
 import bubbletea_chat as bt
 
 # Import our ToDo Agent components
-from to_do_agent.config.dependencies import get_to_do_agent
+from to_do_agent.domain.agent import ToDoAgent
 
 # ----  BubbleTea Configuration - How Your Bot Appears  ----
 @bt.config()
@@ -57,44 +56,6 @@ class ChatRequest(BaseModel):
     user_email: Optional[str] = Field(None, description="User's email address if available")
     images: Optional[List[str]] = Field(None, description="Image URLs/base64 data for vision-enabled bots")
 
-# ----  Your Bot Logic - How Your ToDo Agent Responds  ----
-@bt.chatbot(name="To-Do Assistant", stream=True)
-async def todo_bot(message: str, user_uuid: str = None, conversation_uuid: str = None):
-    """
-    The main logic for your ToDo Agent in BubbleTea.
-    
-    This function handles incoming messages from BubbleTea users and
-    generates responses using your actual ToDo Agent. It can stream
-    responses in real-time for a better user experience.
-    
-    Args:
-        message: What the user said to your bot
-        user_uuid: Unique identifier for the user
-        conversation_uuid: Unique identifier for the conversation
-        
-    Yields:
-        BubbleTea components that form the response
-    """
-    # Get the actual ToDo Agent instance
-    agent = get_to_do_agent()
-    
-    # Use conversation_uuid as conversation_id, or generate one if not provided
-    conversation_id = conversation_uuid or f"bubbletea_{user_uuid or 'default'}"
-    
-    try:
-        # Process the message through your actual ToDo Agent
-        response_text = await agent.process_message(message, conversation_id)
-        
-        # Return the AI's response as a text component
-        yield bt.Text(response_text)
-        
-    except Exception as e:
-        # Handle any errors gracefully
-        error_message = f"I'm sorry, I encountered an error: {str(e)}"
-        yield bt.Text(error_message)
-
-# ----  FastAPI Integration - Making It Work with Your Web Server  ----
-# The SDK provides decorators for behavior; here we expose plain callables FastAPI can route to.
 
 def fastapi_config_handler():
     """
@@ -109,7 +70,7 @@ def fastapi_config_handler():
     # BubbleTea expects JSON of BotConfig at /config
     return bubbletea_config().__dict__
 
-async def fastapi_chat_handler(req: ChatRequest):
+async def fastapi_chat_handler(req: ChatRequest, agent: ToDoAgent):
     """
     Handle chat requests from BubbleTea.
     
@@ -119,13 +80,11 @@ async def fastapi_chat_handler(req: ChatRequest):
     
     Args:
         req: The chat request from BubbleTea
+        agent: The ToDo Agent instance (injected via dependency injection)
         
     Returns:
         BubbleTea-compatible response format with responses array
     """
-    # Get the actual ToDo Agent instance
-    agent = get_to_do_agent()
-    
     # Use conversation_uuid as conversation_id, or generate one if not provided
     conversation_id = req.conversation_uuid or f"bubbletea_{req.user_uuid or 'default'}"
     
