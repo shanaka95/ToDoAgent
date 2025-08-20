@@ -23,6 +23,8 @@ dependencies = [
     "langchain-core>=0.3.74",
     "openai>=1.99.9",
     "tiktoken>=0.7.0",
+    "bubbletea[llm]>=0.0.2",
+    "litellm>=1.75.8",
 ]
 
 [tool.hatch.metadata]
