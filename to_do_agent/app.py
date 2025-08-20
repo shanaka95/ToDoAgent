@@ -1,3 +1,6 @@
+# Main FastAPI application for the ToDo Agent
+# This is the entry point that sets up our web server and connects all the pieces together
+
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from fastapi import FastAPI, Request
@@ -9,16 +12,17 @@ from fastapi.responses import JSONResponse
 import uvicorn
 from bubbletea_endpoints import fastapi_config_handler, fastapi_chat_handler, ChatRequest
 
-# Get settings for initial setup
+# Load our app settings right at startup so we know how to configure everything
 startup_app_settings = get_app_settings()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    Lifespan event handler - manages startup and shutdown events.
+    This function runs when our app starts up and shuts down.
+    Think of it as the "on/off switch" for our application.
     """
-    # Startup
+    # When the app starts up, let's log some helpful info
     app_settings = get_app_settings()
     print(
         f"Starting {app_settings.service_name} service",
@@ -26,35 +30,45 @@ async def lifespan(app: FastAPI):
         f"Port: {app_settings.port}",
     )
 
+    # This 'yield' means "keep the app running until it's time to shut down"
     yield
 
 
+# Create our main FastAPI application
+# This is like setting up the foundation of our house
 app = FastAPI(
     title=startup_app_settings.service_name,
     description="To Do Agent",
     version=startup_app_settings.version,
-    root_path="/prod/",
-    lifespan=lifespan,
+    root_path="/prod/",  # This is for AWS Lambda deployment
+    lifespan=lifespan,   # Connect our startup/shutdown handler
 )
 app.openapi_version = "3.0.2"
+
+# Set up AWS Lambda handler for serverless deployment
+# This lets us run our app on AWS without managing servers
 handler = Mangum(app)
 
+# Add CORS middleware to allow web browsers to talk to our API
+# Without this, web apps couldn't call our API from different domains
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=["*"],        # Allow requests from any website (for demo purposes)
+    allow_credentials=True,     # Allow cookies and authentication headers
+    allow_methods=["*"],        # Allow all HTTP methods (GET, POST, etc.)
+    allow_headers=["*"],        # Allow all request headers
 )
 
 
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception):
     """
-    Handle all exceptions with consistent response format.
+    This is our safety net - if anything goes wrong, this function catches it
+    and returns a nice error message instead of crashing the app.
     """
     print(f"Unhandled exception: {str(exc)}")
 
+    # Return a user-friendly error response with timestamp
     return JSONResponse(
         status_code=500,
         content={
@@ -66,14 +80,19 @@ async def generic_exception_handler(request: Request, exc: Exception):
     )
 
 
+# Include our main API routes (this connects all our endpoints)
 app.include_router(root_router)
 
+# These are special endpoints for BubbleTea integration
+# They provide a standardized way for external tools to interact with our app
 @app.get("/config")
 async def bubbletea_config():
+    """Provide configuration info to BubbleTea tools"""
     return fastapi_config_handler()
 
 @app.post("/chat")
 async def bubbletea_chat(req: ChatRequest):
+    """Handle chat requests from BubbleTea integration"""
     return await fastapi_chat_handler(req)
 
 if __name__ == "__main__":

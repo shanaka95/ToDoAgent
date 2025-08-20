@@ -120,6 +120,25 @@ wheels = [
 ]
 
 [[package]]
+name = "bubbletea-chat"
+version = "0.6.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "fastapi" },
+    { name = "pydantic" },
+    { name = "uvicorn" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/09/2f/d423863449b0f9d74a3d67f03354f7c39c7bd38161fa01999a41f177896f/bubbletea_chat-0.6.3.tar.gz", hash = "sha256:fb8e76b05fe175c800e818129dd895fd27c56a4a68b5106e2d721a8953ce7b82", size = 34565, upload-time = "2025-08-11T05:06:08.843Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5c/ef/394643aaca2cdaccdc15f9020b217b6cb2c51793abae3376e82b1efa4bdb/bubbletea_chat-0.6.3-py3-none-any.whl", hash = "sha256:b6c491c680b1be9ad22b3fd9dc2f2ee0ab2dfe4ff7012aef2f1304266e269983", size = 22054, upload-time = "2025-08-11T05:06:02.868Z" },
+]
+
+[package.optional-dependencies]
+llm = [
+    { name = "litellm" },
+]
+
+[[package]]
 name = "cachetools"
 version = "6.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1539,6 +1558,7 @@ source = { editable = "." }
 dependencies = [
     { name = "anthropic" },
     { name = "bubbletea" },
+    { name = "bubbletea-chat", extra = ["llm"] },
     { name = "cachetools" },
     { name = "fastapi", extra = ["standard"] },
     { name = "httpx" },
@@ -1576,6 +1596,7 @@ dev = [
 requires-dist = [
     { name = "anthropic", specifier = ">=0.57.1" },
     { name = "bubbletea", extras = ["llm"], specifier = ">=0.0.2" },
+    { name = "bubbletea-chat", extras = ["llm"] },
     { name = "cachetools", specifier = ">=5.5.2" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.115.8" },
     { name = "httpx", specifier = ">=0.28.1" },

@@ -1,55 +1,128 @@
-# bubbletea_integration.py
+"""
+BubbleTea Integration - Connecting to External Chat Tools
+
+This module provides integration with BubbleTea, an external chat interface tool.
+Think of it as the "bridge" that allows your ToDo Agent to work with BubbleTea's
+chat interface, making your AI assistant accessible through their platform.
+
+The integration includes:
+- Configuration for how your bot appears in BubbleTea
+- Request/response handling for BubbleTea's chat format
+- Streaming support for real-time responses
+- Compatibility with BubbleTea's component system
+
+This allows users to interact with your ToDo Agent through BubbleTea's
+chat interface, providing an alternative way to access your task management system.
+"""
+
 from typing import Optional, List
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import bubbletea_chat as bt
 from bubbletea_chat import LLM
 
-# ----  BubbleTea config the client reads at /config  ----
+# ----  BubbleTea Configuration - How Your Bot Appears  ----
 @bt.config()
 def bubbletea_config():
-    # IMPORTANT: if you deploy behind API Gateway with root_path="/prod/",
-    # set url to your public base, e.g., "https://api.example.com/prod"
+    """
+    Configure how your ToDo Agent appears in BubbleTea.
+    
+    This function tells BubbleTea about your bot - its name, appearance,
+    and basic behavior. It's like setting up your bot's profile in their system.
+    
+    IMPORTANT: If you deploy behind API Gateway with root_path="/prod/",
+    set url to your public base, e.g., "https://api.example.com/prod"
+    """
     return bt.BotConfig(
-        name="todo-assistant",
-        url="",               # fill in your public base URL (no trailing slash)
-        is_streaming=True,    # BubbleTea supports streaming generators
-        display_name="To-Do Assistant",
-        subtitle="Task management via chat",
-        initial_text="Hi! Tell me your task, e.g., 'add Buy milk due tomorrow'."
+        name="todo-assistant",                    # Internal name for the bot
+        url="",                                   # Your public base URL (no trailing slash)
+        is_streaming=True,                        # Enable real-time streaming responses
+        display_name="To-Do Assistant",           # Name users see in the interface
+        subtitle="Task management via chat",      # Brief description of what the bot does
+        initial_text="Hi! Tell me your task, e.g., 'add Buy milk due tomorrow'."  # Welcome message
     )
 
-# ----  Request model matching what BubbleTea sends to /chat  ----
+# ----  Request Model - What BubbleTea Sends to Your Bot  ----
 class ChatRequest(BaseModel):
-    message: str
-    user_uuid: Optional[str] = None
-    conversation_uuid: Optional[str] = None
-    user_email: Optional[str] = None
-    images: Optional[List[str]] = None   # BubbleTea may send image URLs/base64 for vision bots
+    """
+    The structure of requests that BubbleTea sends to your bot.
+    
+    This defines what information BubbleTea provides when a user
+    sends a message to your ToDo Agent through their interface.
+    """
+    message: str = Field(description="The user's message to your bot")
+    user_uuid: Optional[str] = Field(None, description="Unique identifier for the user")
+    conversation_uuid: Optional[str] = Field(None, description="Unique identifier for the conversation")
+    user_email: Optional[str] = Field(None, description="User's email address if available")
+    images: Optional[List[str]] = Field(None, description="Image URLs/base64 data for vision-enabled bots")
 
-# ----  Your bot logic. Yield BubbleTea components.  ----
+# ----  Your Bot Logic - How Your ToDo Agent Responds  ----
 @bt.chatbot(name="To-Do Assistant", stream=True)
 async def todo_bot(message: str, user_uuid: str = None, conversation_uuid: str = None):
+    """
+    The main logic for your ToDo Agent in BubbleTea.
+    
+    This function handles incoming messages from BubbleTea users and
+    generates responses. It can stream responses in real-time for
+    a better user experience.
+    
+    Args:
+        message: What the user said to your bot
+        user_uuid: Unique identifier for the user
+        conversation_uuid: Unique identifier for the conversation
+        
+    Yields:
+        BubbleTea components that form the response
+    """
+    # TODO: Connect this to your actual ToDo Agent
     # Example: hand off to your to_do_agent here, then format replies for BubbleTea
     # resp = await process_message_with_agent(message, user_uuid, conversation_uuid)
-    # For now, a minimal echo + hint:
+    
+    # For now, provide a simple echo response with helpful hints
     if message.lower().startswith("help"):
         yield bt.Markdown("**Try:** `add Buy milk tomorrow 6pm` or `list tasks`")
         return
+    
     yield bt.Text(f"You said: {message}")
+    
     # You can also stream LLM output if you enable [llm] extra:
     # llm = LLM(model="gpt-4o-mini")   # or any LiteLLM-supported model with env keys set
     # async for chunk in llm.stream(f"Rephrase as a concise task: {message}"):
     #     yield bt.Text(chunk)
 
-# ----  FastAPI-compatible handlers for /config and /chat  ----
+# ----  FastAPI Integration - Making It Work with Your Web Server  ----
 # The SDK provides decorators for behavior; here we expose plain callables FastAPI can route to.
+
 def fastapi_config_handler():
+    """
+    Provide configuration information to BubbleTea.
+    
+    This function returns the bot configuration in the format that
+    BubbleTea expects when it queries your /config endpoint.
+    
+    Returns:
+        Bot configuration as a dictionary
+    """
     # BubbleTea expects JSON of BotConfig at /config
     return bubbletea_config().__dict__
 
 async def fastapi_chat_handler(req: ChatRequest):
+    """
+    Handle chat requests from BubbleTea.
+    
+    This function processes incoming chat requests from BubbleTea
+    and returns responses in the format they expect. It collects
+    all the components generated by your bot and formats them properly.
+    
+    Args:
+        req: The chat request from BubbleTea
+        
+    Returns:
+        A list of response components that BubbleTea can display
+    """
     # The decorator makes todo_bot an async generator; collect its emitted components
     payload = []
+    
+    # Process the message through your bot and collect all response components
     async for component in todo_bot(
         message=req.message,
         user_uuid=req.user_uuid,
@@ -58,4 +131,5 @@ async def fastapi_chat_handler(req: ChatRequest):
     ):
         # Components are dataclasses; convert to JSON-ish dicts BubbleTea understands
         payload.append(component.to_dict() if hasattr(component, "to_dict") else component.__dict__)
+    
     return payload

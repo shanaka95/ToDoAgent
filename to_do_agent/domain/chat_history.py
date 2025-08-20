@@ -1,7 +1,19 @@
 """
-Chat history manager for the ToDo Agent.
+Chat History Manager - Remembering Your Conversations
 
-This module provides in-memory storage and management of chat conversations.
+This module manages the conversation history for your AI task assistant.
+Think of it as the AI's memory - it remembers what you've said before
+so the AI can understand context like "also eggs" meaning "buy eggs"
+from a previous shopping conversation.
+
+The chat history system:
+- Stores all your messages and the AI's responses
+- Organizes conversations by unique IDs
+- Provides context for the AI to understand references
+- Keeps track of when messages were sent
+- Allows the AI to remember what you've talked about
+
+This is what makes your AI assistant seem smart and context-aware!
 """
 
 import uuid
@@ -15,49 +27,79 @@ logger = logging.getLogger(__name__)
 
 
 class ChatMessage(BaseModel):
-    """Represents a single message in a chat conversation."""
+    """
+    A single message in a conversation.
     
-    id: str = Field(..., description="Unique message ID")
-    content: str = Field(..., description="Message content")
-    role: str = Field(..., description="Message role (user/assistant)")
-    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Message timestamp")
+    This represents one message - either from you or from the AI.
+    It includes the message content, who sent it, and when it was sent.
+    """
+    
+    id: str = Field(..., description="Unique identifier for this message")
+    content: str = Field(..., description="The actual message text")
+    role: str = Field(..., description="Who sent this: 'user' (you) or 'assistant' (AI)")
+    timestamp: datetime = Field(default_factory=datetime.utcnow, description="When this message was sent")
 
 
 class ChatConversation(BaseModel):
-    """Represents a chat conversation with its history."""
+    """
+    A complete conversation between you and the AI.
     
-    conversation_id: str = Field(..., description="Unique conversation ID")
-    messages: List[ChatMessage] = Field(default_factory=list, description="List of messages in the conversation")
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="Conversation creation timestamp")
-    updated_at: datetime = Field(default_factory=datetime.utcnow, description="Last update timestamp")
+    This represents an entire chat session, including all the messages
+    exchanged between you and the AI. Each conversation has a unique ID
+    so the AI can remember different chat sessions separately.
+    """
+    
+    conversation_id: str = Field(..., description="Unique identifier for this conversation")
+    messages: List[ChatMessage] = Field(default_factory=list, description="All messages in this conversation")
+    created_at: datetime = Field(default_factory=datetime.utcnow, description="When this conversation started")
+    updated_at: datetime = Field(default_factory=datetime.utcnow, description="When the last message was added")
 
 
 class ChatHistoryManager:
     """
-    Manages in-memory chat history for conversations.
+    The AI's Memory System - Managing All Your Conversations
     
-    This class provides methods to store, retrieve, and manage chat conversations
-    in memory. Each conversation is identified by a unique conversation ID.
+    This class is responsible for storing and managing all your chat conversations
+    with the AI. It's like the AI's brain that remembers what you've talked about
+    so it can provide context-aware responses.
+    
+    The manager can:
+    - Store new messages in conversations
+    - Retrieve conversation history for context
+    - Manage multiple separate conversations
+    - Clean up old conversations when needed
     """
     
     def __init__(self):
-        """Initialize the chat history manager."""
+        """
+        Set up the conversation memory system.
+        
+        This initializes an empty storage area where all conversations
+        will be kept in memory (like a digital filing cabinet).
+        """
+        # Store all conversations in a dictionary, organized by conversation ID
         self._conversations: Dict[str, ChatConversation] = {}
         self.logger = logging.getLogger(__name__)
     
     def add_message(self, conversation_id: str, content: str, role: str = "user") -> str:
         """
-        Add a message to a conversation.
+        Add a new message to a conversation.
+        
+        This is like adding a new entry to a chat log. The message gets
+        stored with a unique ID and timestamp so the AI can reference it later.
         
         Args:
-            conversation_id: The conversation ID
-            content: The message content
-            role: The message role (user/assistant)
+            conversation_id: Which conversation this message belongs to
+            content: The actual message text
+            role: Who sent this message ('user' for you, 'assistant' for AI)
             
         Returns:
-            The message ID
+            A unique ID for the message that was just added
         """
+        # Create a unique identifier for this message
         message_id = str(uuid.uuid4())
+        
+        # Create the message object with all its details
         message = ChatMessage(
             id=message_id,
             content=content,
@@ -65,11 +107,13 @@ class ChatHistoryManager:
             timestamp=datetime.utcnow()
         )
         
+        # If this is a new conversation, create it
         if conversation_id not in self._conversations:
             self._conversations[conversation_id] = ChatConversation(
                 conversation_id=conversation_id
             )
         
+        # Add the message to the conversation and update the timestamp
         conversation = self._conversations[conversation_id]
         conversation.messages.append(message)
         conversation.updated_at = datetime.utcnow()
@@ -79,34 +123,43 @@ class ChatHistoryManager:
     
     def get_conversation(self, conversation_id: str) -> Optional[ChatConversation]:
         """
-        Get a conversation by ID.
+        Retrieve a specific conversation by its ID.
+        
+        This is like looking up a specific chat session in the AI's memory.
+        Useful when you want to see the full history of a particular conversation.
         
         Args:
-            conversation_id: The conversation ID
+            conversation_id: The ID of the conversation you want to find
             
         Returns:
-            The conversation or None if not found
+            The complete conversation if found, or None if it doesn't exist
         """
         return self._conversations.get(conversation_id)
     
     def get_all_conversations(self) -> List[ChatConversation]:
         """
-        Get all conversations.
+        Get a list of all conversations.
+        
+        This is like getting an overview of all your chat sessions with the AI.
+        Useful for debugging or if you want to see all your conversation history.
         
         Returns:
-            List of all conversations
+            A list of all conversations the AI has stored
         """
         return list(self._conversations.values())
     
     def delete_conversation(self, conversation_id: str) -> bool:
         """
-        Delete a conversation.
+        Remove a specific conversation from memory.
+        
+        This is like deleting a chat history. Useful if you want to start
+        fresh with the AI or if a conversation is no longer relevant.
         
         Args:
-            conversation_id: The conversation ID
+            conversation_id: The ID of the conversation to delete
             
         Returns:
-            True if deleted, False if not found
+            True if the conversation was found and deleted, False if it didn't exist
         """
         if conversation_id in self._conversations:
             del self._conversations[conversation_id]
@@ -116,10 +169,13 @@ class ChatHistoryManager:
     
     def clear_all_conversations(self) -> int:
         """
-        Clear all conversations.
+        Clear all conversations from memory.
+        
+        This is like wiping the AI's memory clean. All conversation history
+        will be lost, and the AI will start fresh with no context.
         
         Returns:
-            Number of conversations cleared
+            How many conversations were cleared
         """
         count = len(self._conversations)
         self._conversations.clear()
@@ -128,25 +184,32 @@ class ChatHistoryManager:
     
     def get_conversation_messages(self, conversation_id: str) -> List[ChatMessage]:
         """
-        Get all messages from a conversation.
+        Get all messages from a specific conversation.
+        
+        This is the most important method - it retrieves the conversation history
+        that the AI uses to understand context. When you say "also eggs", the AI
+        looks at previous messages to understand you mean "buy eggs".
         
         Args:
-            conversation_id: The conversation ID
+            conversation_id: The ID of the conversation to get messages from
             
         Returns:
-            List of messages or empty list if conversation not found
+            A list of all messages in that conversation, or empty list if not found
         """
         conversation = self.get_conversation(conversation_id)
         return conversation.messages if conversation else []
     
     def conversation_exists(self, conversation_id: str) -> bool:
         """
-        Check if a conversation exists.
+        Check if a conversation exists in memory.
+        
+        This is like checking if the AI remembers a particular chat session.
+        Useful for determining if you're starting a new conversation or continuing an old one.
         
         Args:
-            conversation_id: The conversation ID
+            conversation_id: The ID of the conversation to check for
             
         Returns:
-            True if conversation exists, False otherwise
+            True if the conversation exists, False if it doesn't
         """
         return conversation_id in self._conversations

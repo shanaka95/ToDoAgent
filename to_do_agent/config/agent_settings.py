@@ -1,8 +1,19 @@
 """
-Configuration settings for the ToDoAgent.
+AI Agent Configuration - Setting Up Your Smart Assistant
 
-This module defines the configuration settings, model options, and prompts for the todo task management agent.
-It uses Pydantic for settings management and validation.
+This module contains all the configuration settings for your AI task assistant.
+Think of it as the "control panel" that determines how your AI behaves,
+which language model it uses, and what instructions it follows.
+
+The configuration includes:
+- Which AI model to use (like GPT-4, Claude, etc.)
+- How creative vs. precise the AI should be (temperature)
+- The instructions that tell the AI how to behave
+- API keys and connection settings
+- Logging and debugging options
+
+The system prompt is particularly important - it's like the "job description"
+that tells the AI exactly how to handle your task requests.
 """
 
 import logging
@@ -18,36 +29,60 @@ from langchain_openai import ChatOpenAI
 
 from to_do_agent.config.app_settings import AppSettings
 
-# Configure logging
+# Set up logging to track configuration issues
 logger = logging.getLogger(__name__)
 
 
 class AgentSettings(BaseSettings):
-    """Configuration settings for the ToDo agent."""
+    """
+    Configuration settings for your AI task assistant.
+    
+    This class holds all the settings that control how your AI assistant works.
+    It uses environment variables for configuration, so you can easily change
+    settings without modifying code.
+    """
     
     model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(
-        env_prefix="agent_",
+        env_prefix="agent_",  # All environment variables start with "agent_"
         nested_model_default_partial_update=True,
         env_nested_delimiter="_",
     )
 
-    # Model configuration
-    model_name: str = Field(default="gpt-4o-2024-08-06", description="Language model to use")
-    temperature: float = Field(default=0.0, description="Model temperature")
+    # AI Model Configuration
+    model_name: str = Field(
+        default="gpt-4o-2024-08-06", 
+        description="Which AI model to use (like GPT-4, Claude, etc.)"
+    )
+    temperature: float = Field(
+        default=0.0, 
+        description="How creative vs. precise the AI should be (0.0 = very precise, 1.0 = very creative)"
+    )
     
-    # OpenRouter configuration
-    openai_base_url: str = Field(default="", description="OpenAI base URL")
-    api_key: Optional[str] = os.environ.get("OPENAI_API_KEY")
+    # API Connection Settings
+    openai_base_url: str = Field(
+        default="", 
+        description="Base URL for the AI service (for OpenRouter or other providers)"
+    )
+    api_key: Optional[str] = os.environ.get("OPENAI_API_KEY")  # Your API key for the AI service
     
-    # Environment configuration
-    environment: str = Field(default="development", description="Environment")
+    # Environment Settings
+    environment: str = Field(
+        default="development", 
+        description="Current environment (development, production, etc.)"
+    )
     
-    # Logging configuration
-    log_level: str = Field(default="INFO", description="Logging level")
-    enable_conversation_logging: bool = Field(default=True, description="Enable conversation logging")
+    # Logging and Debugging
+    log_level: str = Field(
+        default="INFO", 
+        description="How detailed the logs should be"
+    )
+    enable_conversation_logging: bool = Field(
+        default=True, 
+        description="Whether to log conversations for debugging"
+    )
 
 
-# System prompt for the todo agent
+# The AI's Job Description - This is crucial!
 SYSTEM_MESSAGE = """You are a ToDo Task Management Agent with context awareness. You understand conversation history and intelligently interpret user requests.
 
 ## Tools Available
@@ -106,55 +141,96 @@ If uncertain about context, ask for clarification with a single short question.
 """
 
 
-# Configuration and initialization functions
+# Configuration Helper Functions
 @lru_cache
 def get_agent_settings() -> AgentSettings:
-    """Get cached agent settings instance."""
+    """
+    Get the AI agent's configuration settings.
+    
+    This function caches the settings so we don't have to reload them
+    every time we need them. It's like keeping the settings in memory
+    for quick access.
+    
+    Returns:
+        The agent configuration settings
+    """
     return AgentSettings()
 
 
 @lru_cache
 def get_app_settings() -> AppSettings:
-    """Get cached app settings instance."""
+    """
+    Get the main application settings.
+    
+    Similar to agent settings, but for the overall application
+    configuration like server settings, database connections, etc.
+    
+    Returns:
+        The application configuration settings
+    """
     return AppSettings()
 
 
 @lru_cache
 def get_model() -> BaseChatModel:
-    """Get cached language model instance."""
+    """
+    Create and configure the AI language model.
+    
+    This function sets up the AI model that will understand and respond
+    to your requests. It uses the settings from AgentSettings to configure
+    things like which model to use and how creative it should be.
+    
+    Returns:
+        A configured AI language model ready to use
+    """
     agent_settings = get_agent_settings()
     
+    # Create the AI model with our configuration
     return ChatOpenAI(
-        model=agent_settings.model_name,
-        temperature=agent_settings.temperature,
-        api_key=agent_settings.api_key,
-        base_url=agent_settings.openai_base_url
+        model=agent_settings.model_name,      # Which AI model to use
+        temperature=agent_settings.temperature,  # How creative vs. precise
+        api_key=agent_settings.api_key,       # Your API key
+        base_url=agent_settings.openai_base_url  # Where to connect to
     )
 
 
 @lru_cache
 def get_system_prompt() -> ChatPromptTemplate:
-    """Get cached system prompt template."""
+    """
+    Create the instructions that tell the AI how to behave.
+    
+    This function creates the "job description" for the AI. The system prompt
+    is like a detailed instruction manual that tells the AI exactly how to
+    handle different types of requests and what tools it can use.
+    
+    Returns:
+        A prompt template with the AI's instructions
+    """
     return ChatPromptTemplate.from_messages([
-        ("system", SYSTEM_MESSAGE),
-        ("placeholder", "{messages}"),
+        ("system", SYSTEM_MESSAGE),  # The AI's job description
+        ("placeholder", "{messages}"),  # Where user messages will go
     ])
 
 
 def get_invoke_config(conversation_id: str) -> dict:
     """
-    Get the invocation configuration for the agent.
-
+    Create the configuration for running the AI agent.
+    
+    This function sets up the configuration that's used when we actually
+    run the AI agent. It includes things like conversation tracking
+    so the AI can remember previous messages in the same conversation.
+    
     Args:
-        conversation_id: Unique identifier for the conversation.
-
+        conversation_id: A unique ID to track this conversation
+        
     Returns:
-        Dict containing the invocation configuration.
+        Configuration dictionary for the AI agent
     """
     agent_settings = get_agent_settings()
 
+    # Set up the configuration with conversation tracking
     config = {
-         "configurable": {"session_id": conversation_id}
+         "configurable": {"session_id": conversation_id}  # Track this conversation
     }
 
     return config
